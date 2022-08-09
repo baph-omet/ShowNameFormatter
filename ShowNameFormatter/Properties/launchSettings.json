@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Print Only": {
+      "commandName": "Project",
+      "commandLineArgs": "--dir \"E:\\Media\\Video\\Shows\\Samurai Champloo (2004)\""
+    }
+  }
+}
