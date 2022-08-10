@@ -174,6 +174,7 @@ namespace ShowNameFormatter {
             if (season != null) dir = Path.Combine(dir, $"Season {season}");
 
             List<string> files = Directory.GetFiles(dir, "*.mkv").Where(x => IsPreformatted(x, season)).ToList();
+            if (files.Count == 0) return 1;
 
             Regex EpisodeParser = new(@"e\d+");
             int highestEpisodeNo = files.Max(x => Convert.ToInt32(EpisodeParser.Match(x).Value[1..]));
