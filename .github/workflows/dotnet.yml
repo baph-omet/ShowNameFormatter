@@ -23,6 +23,8 @@ jobs:
       run: dotnet build --no-restore
     - name: Test
       run: dotnet test --no-build --verbosity normal
+    - name: Publish
+      run: dotnet publish -r win
       
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3.1.0
@@ -31,7 +33,7 @@ jobs:
         name: ShowNameFormatter-nightly # optional, default is artifact
         
         # A file, directory or wildcard pattern that describes what to upload
-        path: ShowNameFormatter/bin/Release/net6.0-windows/win-x64/ShowNameFormatter.exe
+        path: ShowNameFormatter.exe
         
         # The desired behavior if no files are found using the provided path.
         # Available Options:
