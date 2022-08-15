@@ -1,5 +1,9 @@
 # ShowNameFormatter
-Converts ouputted TV Show video files from MakeMKV into file names usable by Plex.
+Command-line tool that takes `.mkv` files for show episodes outputted by MakeMKV and renames them in a format that Plex Media Server can read. Currently just for win-x64, but is built against .NET 6.0, so could be built for other OS's as well.
+
+## Download
+* Recommended: Grab the [latest release](https://github.com/baph-omet/ShowNameFormatter/releases/latest)
+* Advanced: Grab the [latest nightly build](https://nightly.link/baph-omet/ShowNameFormatter/workflows/dotnet/master/ShowNameFormatter-nightly.zip)
 
 # Usage
 ## Basic
