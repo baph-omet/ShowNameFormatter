@@ -3,8 +3,10 @@ name: .NET
 on:
   push:
     branches: [ "master" ]
+    paths: [ "ShowNameFormatter/**" ]
   pull_request:
     branches: [ "master" ]
+    paths: [ "ShowNameFormatter/**" ]
 
 jobs:
   build:
