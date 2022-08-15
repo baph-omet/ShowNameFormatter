@@ -33,7 +33,7 @@ jobs:
         name: ShowNameFormatter-nightly # optional, default is artifact
         
         # A file, directory or wildcard pattern that describes what to upload
-        path: ShowNameFormatter.exe
+        path: /home/runner/work/ShowNameFormatter/ShowNameFormatter/ShowNameFormatter/bin/**/net6.0-windows/win-x64/publish/ShowNameFormatter.exe
         
         # The desired behavior if no files are found using the provided path.
         # Available Options:
