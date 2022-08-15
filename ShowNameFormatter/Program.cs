@@ -11,6 +11,8 @@ namespace ShowNameFormatter {
         private static string ShowName = string.Empty;
         private static string CWD = Directory.GetCurrentDirectory();
 
+        private static uint FirstEpisodeNo = 0;
+
         public static void Main(string[] args) {
             ParseArgs(args);
 
@@ -65,32 +67,41 @@ namespace ShowNameFormatter {
                 Console.WriteLine("Will ignore instances where the program can't access an episode file and skip to the next (not recommended while MakeMKV is running a rip).");
             }
 
-            string argNameShow = "--show";
-            if (args.Contains(argNameShow, StringComparer.InvariantCultureIgnoreCase)) {
-                string arg = args.First(x => x.Equals(argNameShow, StringComparison.InvariantCultureIgnoreCase));
-                int argIndex = Array.IndexOf(args, arg);
-                try {
-                    string show = args[argIndex + 1];
-                    if (show.Contains("--")) throw new ArgumentException("Expected a name of show.", nameof(args));
-                    ShowName = show;
-                    Directory.SetCurrentDirectory(Path.Combine(Directory.GetCurrentDirectory(), ShowName));
-                } catch (Exception e) {
-                    throw new ArgumentException("Expected a name of show.", nameof(args), e);
+            ParseVariableArg<string>("--show", args, x => {
+                if (!Directory.Exists(x)) throw new ArgumentException("Expected an existing directory.", nameof(args), new DirectoryNotFoundException(x));
+                ShowName = x;
+                Directory.SetCurrentDirectory(Path.Combine(Directory.GetCurrentDirectory(), x));
+            });
+
+            ParseVariableArg<string>("--dir", args, x => {
+                if (!Directory.Exists(x)) throw new ArgumentException("Expected an existing directory.", nameof(args), new DirectoryNotFoundException(x));
+                CWD = x;
+            });
+
+            ParseVariableArg<uint>("--firstep", args, x => FirstEpisodeNo = x);
+        }
+
+        private static void ParseVariableArg<T>(string argName, string[] args, Action<T> onFound) {
+            if (!args.Contains(argName, StringComparer.InvariantCultureIgnoreCase)) return;
+
+            string arg = args.First(x=>x.Equals(argName, StringComparison.InvariantCultureIgnoreCase));
+            int argIndex = Array.IndexOf(args, arg);
+            T? convertedValue = default;
+            try {
+                string value = args[argIndex + 1];
+
+                if (string.IsNullOrWhiteSpace(value) || value[..2].Equals("--")) {
+                    Console.WriteLine($"Expected a variable after argument {argName}. Ignoring.");
+                    return;
                 }
+
+                convertedValue = (T)Convert.ChangeType(value, typeof(T));
+            } catch (Exception) {
+                Console.WriteLine($"Expected a variable of type {typeof(T).Name} after argument {argName}. Ignoring.");
+                return;
             }
 
-            string argNameDir = "--dir";
-            if (args.Contains(argNameDir, StringComparer.InvariantCultureIgnoreCase)) {
-                string arg = args.First(x => x.Equals(argNameDir, StringComparison.InvariantCultureIgnoreCase));
-                int argIndex = Array.IndexOf(args, arg);
-                try {
-                    string dir = args[argIndex + 1];
-                    if (dir.Substring(0, 1).Equals("--") || !Directory.Exists(dir)) throw new ArgumentException("Expected a directory.", nameof(args));
-                    CWD = dir;
-                } catch (Exception e) {
-                    throw new ArgumentException("Expected a directory.", nameof(args), e);
-                }
-            }
+            onFound(convertedValue);
         }
 
         private static void PrintHelp() {
@@ -100,6 +111,7 @@ namespace ShowNameFormatter {
                 "--help - Show this text!",
                 "--show <ShowName> - Manually specify show name, otherwise will just assume the the current folder is the show.",
                 "--dir <Directory> - Manually specify working directory (should be the main show directory). Otherwise will just use the current directory.",
+                "--firstep <Number> - Manually set the first episode number for a folder that contains episodes that don't start at 1.",
                 "--noseasons - This show does not have seasons. All episodes are assumed to be directly in the main show folder. Otherwise, will attempt to find season folders in the format \"Season <number>\"",
                 "--printonly - Doesn't execute any filesystem actions and just prints runtime data instead.",
                 "--ignorebadread - Will ignore instances where the program can't access an episode file and skip to the next (not recommended while MakeMKV is running a rip)."
@@ -178,7 +190,7 @@ namespace ShowNameFormatter {
 
             Regex EpisodeParser = new(@"e\d+");
             int highestEpisodeNo = files.Max(x => Convert.ToInt32(EpisodeParser.Match(x).Value[1..]));
-            return highestEpisodeNo + 1;
+            return Math.Max(highestEpisodeNo + 1, (int)FirstEpisodeNo);
         }
     }
 }
