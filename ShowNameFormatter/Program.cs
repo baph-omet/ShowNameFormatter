@@ -1,20 +1,31 @@
-﻿using System.IO;
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
 
 namespace ShowNameFormatter {
     public static class Program {
-        private static bool UseSeasons = true;
-        private static bool PrintOnly = false;
-        private static bool IgnoreBadRead = false;
+        private static bool NoSeasons;
+        private static bool PrintOnly;
+        private static bool IgnoreBadRead;
+        private static bool SkipPreformattedCheck;
 
-        private static string ShowName = string.Empty;
+        private static string? ShowName;
         private static string CWD = Directory.GetCurrentDirectory();
 
-        private static uint FirstEpisodeNo = 0;
+        private static uint FirstEpisodeNo = 1;
+        private static uint EpisodeNo = 0;
+
+        private static string[] Args = Array.Empty<string>();
 
         public static void Main(string[] args) {
-            ParseArgs(args);
+#if DEBUG
+            if (args.Length == 0) {
+                Console.WriteLine("Type arguments and hit ENTER.");
+                Args = (Console.ReadLine() ?? string.Empty).Split(' ');
+            }
+#else
+            Args = args;
+#endif
+            ParseArgs();
 
             Console.WriteLine("Beginning parsing.");
 
@@ -25,83 +36,98 @@ namespace ShowNameFormatter {
                 ShowName = ShowNameParser.Replace(ShowName, string.Empty);
             }
 
-            if (UseSeasons) {
+            if (NoSeasons) {
+                Directory.GetFiles(CWD, "*.mkv")
+                    .Where(x => !IsPreformatted(x))
+                    .OrderBy(x => x).ToList()
+                    .ForEach(x => ConvertEpisode(x));
+            } else {
                 List<string> seasons = Directory.GetDirectories(CWD, "Season *").ToList();
                 foreach (string s in seasons) {
                     int seasonNo = Convert.ToInt32(Path.GetFileName(s)?.Split(" ")[1]);
+                    EpisodeNo = GetFirstEpisodeNumber(seasonNo);
                     Directory.GetFiles(s, "*.mkv")
                         .Where(x => !IsPreformatted(x, seasonNo))
                         .OrderBy(x => x).ToList()
                         .ForEach(x => ConvertEpisode(x, seasonNo));
                 }
-            } else {
-                Directory.GetFiles("*.mkv")
-                    .Where(x => !IsPreformatted(x))
-                    .OrderBy(x => x).ToList()
-                    .ForEach(x => ConvertEpisode(x));
             }
 
             Console.WriteLine($"Finished processing episodes. Check the files and Plex to make sure everything copied okay!");
             if (PrintOnly) Console.WriteLine("Reminder, this program was run in PrintOnly mode, so no actual changes were made.");
-            Console.ReadKey();
         }
 
-        private static void ParseArgs(string[] args) {
-            if (args.Contains("--help", StringComparer.InvariantCultureIgnoreCase)) {
+        private static void ParseArgs() {
+            ParseFlag("--help", onFound: () => { 
                 PrintHelp();
                 Environment.Exit(0);
-            }
-
-            if (args.Contains("--noseasons", StringComparer.InvariantCultureIgnoreCase)) {
-                UseSeasons = false;
-                Console.WriteLine("Seasons logic is disabled. Will parse all files in current folder.");
-            }
-
-            if (args.Contains("--printonly", StringComparer.InvariantCultureIgnoreCase)) {
-                PrintOnly = true;
-                Console.WriteLine("Will print file names only and will not make any changes.");
-            }
-
-            if (args.Contains("--ignorebadread", StringComparer.InvariantCultureIgnoreCase)) {
-                IgnoreBadRead = true;
-                Console.WriteLine("Will ignore instances where the program can't access an episode file and skip to the next (not recommended while MakeMKV is running a rip).");
-            }
-
-            ParseVariableArg<string>("--show", args, x => {
-                if (!Directory.Exists(x)) throw new ArgumentException("Expected an existing directory.", nameof(args), new DirectoryNotFoundException(x));
-                ShowName = x;
-                Directory.SetCurrentDirectory(Path.Combine(Directory.GetCurrentDirectory(), x));
+                return true;
             });
 
-            ParseVariableArg<string>("--dir", args, x => {
-                if (!Directory.Exists(x)) throw new ArgumentException("Expected an existing directory.", nameof(args), new DirectoryNotFoundException(x));
-                CWD = x;
+            NoSeasons = ParseFlag("--noseasons", "Seasons logic is disabled. Will parse all files in current folder.");
+            PrintOnly = ParseFlag("--printonly", "Will print file names only and will not make any changes.");
+            IgnoreBadRead = ParseFlag("--ignorebadread", "Will ignore instances where the program can't access an episode file and skip to the next (not recommended while MakeMKV is running a rip).");
+            SkipPreformattedCheck = ParseFlag("--force", "Skipping preformatted check and will rename all episodes in order.");
+
+            ShowName = ParseVariable<string>("--show", "Parsing show {0}.", x => {
+                if (!Directory.Exists(x)) throw new ArgumentException("Expected an existing directory.", nameof(Args), new DirectoryNotFoundException(x));
+                return x;
             });
 
-            ParseVariableArg<uint>("--firstep", args, x => FirstEpisodeNo = x);
+            string? cwd = ParseVariable<string>("--dir", "Setting {0} as working directory.", x => {
+                if (!Directory.Exists(x)) throw new ArgumentException("Expected an existing directory.", nameof(Args), new DirectoryNotFoundException(x));
+                return x;
+            });
+            if (!string.IsNullOrEmpty(cwd)) CWD = cwd;
+
+            FirstEpisodeNo = ParseVariable<uint>("--firstep", "Beginning with episode {0}");
         }
 
-        private static void ParseVariableArg<T>(string argName, string[] args, Action<T> onFound) {
-            if (!args.Contains(argName, StringComparer.InvariantCultureIgnoreCase)) return;
+        private static bool ParseFlag(string argName, string message = "", Func<bool>? onFound = null) {
+            if (Args.Contains(argName, StringComparer.InvariantCultureIgnoreCase)) {
+                try {
+                    bool ret = true;
+                    if (onFound != null) ret = onFound();
+                    if (!string.IsNullOrWhiteSpace(message)) Console.WriteLine(message);
+                    return ret;
+                } catch (Exception e) {
+                    Console.WriteLine($"Unhandled exception encountered when attempting to parse argument {argName}.");
+                    Console.WriteLine(e);
+                }
+            }
 
-            string arg = args.First(x=>x.Equals(argName, StringComparison.InvariantCultureIgnoreCase));
-            int argIndex = Array.IndexOf(args, arg);
-            T? convertedValue = default;
+            return false;
+        }
+
+        private static T? ParseVariable<T>(string argName, string message = "", Func<T,T>? onFound = null) {
+            if (!Args.Contains(argName, StringComparer.InvariantCultureIgnoreCase)) return default;
+
+            string arg = Args.First(x => x.Equals(argName, StringComparison.InvariantCultureIgnoreCase));
+            int argIndex = Array.IndexOf(Args, arg);
+            T convertedValue;
             try {
-                string value = args[argIndex + 1];
+                string value = Args[argIndex + 1];
 
                 if (string.IsNullOrWhiteSpace(value) || value[..2].Equals("--")) {
                     Console.WriteLine($"Expected a variable after argument {argName}. Ignoring.");
-                    return;
+                    return default;
                 }
 
                 convertedValue = (T)Convert.ChangeType(value, typeof(T));
             } catch (Exception) {
                 Console.WriteLine($"Expected a variable of type {typeof(T).Name} after argument {argName}. Ignoring.");
-                return;
+                return default;
             }
 
-            onFound(convertedValue);
+            try {
+                if (onFound!=null) convertedValue = onFound(convertedValue);
+                if (!string.IsNullOrWhiteSpace(message)) Console.WriteLine(string.Format(message, convertedValue));
+                return convertedValue;
+            } catch (Exception e) {
+                Console.WriteLine($"Unhandled exception encountered when attempting to parse argument {argName}.");
+                Console.WriteLine(e);
+                return default;
+            }
         }
 
         private static void PrintHelp() {
@@ -114,7 +140,8 @@ namespace ShowNameFormatter {
                 "--firstep <Number> - Manually set the first episode number for a folder that contains episodes that don't start at 1.",
                 "--noseasons - This show does not have seasons. All episodes are assumed to be directly in the main show folder. Otherwise, will attempt to find season folders in the format \"Season <number>\"",
                 "--printonly - Doesn't execute any filesystem actions and just prints runtime data instead.",
-                "--ignorebadread - Will ignore instances where the program can't access an episode file and skip to the next (not recommended while MakeMKV is running a rip)."
+                "--ignorebadread - Will ignore instances where the program can't access an episode file and skip to the next (not recommended while MakeMKV is running a rip).",
+                "--force - Skips preformatted check and renames all episodes in order. Make sure your episodes are in the order you want them!",
             }.ForEach(x => Console.WriteLine(x));
         }
 
@@ -151,7 +178,7 @@ namespace ShowNameFormatter {
 
             StringBuilder newNameBuilder = new($"{ShowName} ");
             if (season != null) newNameBuilder.Append($"s{season}");
-            newNameBuilder.Append($"e{GetNextEpisodeNumber(season)}.mkv");
+            newNameBuilder.Append($"e{GetNextEpisodeNumber()}.mkv");
             string newPath = Path.Combine(
                     Path.GetDirectoryName(path) 
                         ?? throw new ArgumentNullException(nameof(path)),
@@ -168,6 +195,8 @@ namespace ShowNameFormatter {
         }
 
         private static bool IsPreformatted(string path, int? season = null) {
+            if (SkipPreformattedCheck) return false;
+
             string fileName = Path.GetFileNameWithoutExtension(path);
             Regex PreFormattedParser;
             if (season == null) {
@@ -181,16 +210,20 @@ namespace ShowNameFormatter {
             return false;
         }
 
-        private static int GetNextEpisodeNumber(int? season = null) {
+        private static uint GetFirstEpisodeNumber(int? season) {
             string dir = CWD;
             if (season != null) dir = Path.Combine(dir, $"Season {season}");
 
             List<string> files = Directory.GetFiles(dir, "*.mkv").Where(x => IsPreformatted(x, season)).ToList();
-            if (files.Count == 0) return 1;
 
             Regex EpisodeParser = new(@"e\d+");
-            int highestEpisodeNo = files.Max(x => Convert.ToInt32(EpisodeParser.Match(x).Value[1..]));
-            return Math.Max(highestEpisodeNo + 1, (int)FirstEpisodeNo);
+            int highestEpisodeNo = 0;
+            if (files.Count>0) highestEpisodeNo = files.Max(x => Convert.ToInt32(EpisodeParser.Match(x).Value[1..]));
+            return Math.Max((uint)highestEpisodeNo + 1, FirstEpisodeNo);
+        }
+
+        private static uint GetNextEpisodeNumber() {
+            return EpisodeNo++;
         }
     }
 }

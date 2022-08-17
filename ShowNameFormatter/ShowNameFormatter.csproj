@@ -2,23 +2,42 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <StartupObject>ShowNameFormatter.Program</StartupObject>
     <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
-    <PublishReadyToRun>true</PublishReadyToRun>
+    <NeutralLanguage>en</NeutralLanguage>
+    <Version>1.1.0</Version>
+    <Authors>Baphomet Media</Authors>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/baph-omet/ShowNameFormatter</RepositoryUrl>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>full</DebugType>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DebugType>full</DebugType>
+  <PropertyGroup Condition="'$(Configuration)'=='Release win-x64'">
+    <FileVersion>$(Version)-snapshot</FileVersion>
+    <DebugType>none</DebugType>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DebugType>none</DebugType>
+    <FileVersion>$(Version)</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 
 </Project>
