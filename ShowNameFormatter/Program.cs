@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace ShowNameFormatter {
@@ -9,14 +10,14 @@ namespace ShowNameFormatter {
         private static bool SkipPreformattedCheck;
 
         private static string? ShowName;
-        private static string CWD = Directory.GetCurrentDirectory();
+        private static string CWD = "";
 
         private static uint FirstEpisodeNo = 1;
         private static uint EpisodeNo = 0;
 
-        private static string[] Args = Array.Empty<string>();
+        internal static string[] Args = Array.Empty<string>();
 
-        public static void Main(string[] args) {
+        internal static void Main(string[] args) {
 #if DEBUG
             if (args.Length == 0) {
                 Console.WriteLine("Type arguments and hit ENTER.");
@@ -54,95 +55,40 @@ namespace ShowNameFormatter {
             }
 
             Console.WriteLine($"Finished processing episodes. Check the files and Plex to make sure everything copied okay!");
-            if (PrintOnly) Console.WriteLine("Reminder, this program was run in PrintOnly mode, so no actual changes were made.");
+            if (PrintOnly) {
+                Console.WriteLine("Reminder, this program was run in PrintOnly mode, so no actual changes were made. Press ENTER to exit.");
+                Console.Read();
+            }
         }
 
         private static void ParseArgs() {
-            ParseFlag("--help", onFound: () => { 
+            if (Argument.Help.ParseFlag()) {
                 PrintHelp();
                 Environment.Exit(0);
-                return true;
-            });
-
-            NoSeasons = ParseFlag("--noseasons", "Seasons logic is disabled. Will parse all files in current folder.");
-            PrintOnly = ParseFlag("--printonly", "Will print file names only and will not make any changes.");
-            IgnoreBadRead = ParseFlag("--ignorebadread", "Will ignore instances where the program can't access an episode file and skip to the next (not recommended while MakeMKV is running a rip).");
-            SkipPreformattedCheck = ParseFlag("--force", "Skipping preformatted check and will rename all episodes in order.");
-
-            ShowName = ParseVariable<string>("--show", "Parsing show {0}.", x => {
-                if (!Directory.Exists(x)) throw new ArgumentException("Expected an existing directory.", nameof(Args), new DirectoryNotFoundException(x));
-                return x;
-            });
-
-            string? cwd = ParseVariable<string>("--dir", "Setting {0} as working directory.", x => {
-                if (!Directory.Exists(x)) throw new ArgumentException("Expected an existing directory.", nameof(Args), new DirectoryNotFoundException(x));
-                return x;
-            });
-            if (!string.IsNullOrEmpty(cwd)) CWD = cwd;
-
-            FirstEpisodeNo = ParseVariable<uint>("--firstep", "Beginning with episode {0}");
-        }
-
-        private static bool ParseFlag(string argName, string message = "", Func<bool>? onFound = null) {
-            if (Args.Contains(argName, StringComparer.InvariantCultureIgnoreCase)) {
-                try {
-                    bool ret = true;
-                    if (onFound != null) ret = onFound();
-                    if (!string.IsNullOrWhiteSpace(message)) Console.WriteLine(message);
-                    return ret;
-                } catch (Exception e) {
-                    Console.WriteLine($"Unhandled exception encountered when attempting to parse argument {argName}.");
-                    Console.WriteLine(e);
-                }
             }
 
-            return false;
-        }
+            NoSeasons = Argument.NoSeasons.ParseFlag();
+            PrintOnly = Argument.PrintOnly.ParseFlag();
+            IgnoreBadRead = Argument.IgnoreBadRead.ParseFlag();
+            SkipPreformattedCheck = Argument.Force.ParseFlag();
 
-        private static T? ParseVariable<T>(string argName, string message = "", Func<T,T>? onFound = null) {
-            if (!Args.Contains(argName, StringComparer.InvariantCultureIgnoreCase)) return default;
-
-            string arg = Args.First(x => x.Equals(argName, StringComparison.InvariantCultureIgnoreCase));
-            int argIndex = Array.IndexOf(Args, arg);
-            T convertedValue;
-            try {
-                string value = Args[argIndex + 1];
-
-                if (string.IsNullOrWhiteSpace(value) || value[..2].Equals("--")) {
-                    Console.WriteLine($"Expected a variable after argument {argName}. Ignoring.");
-                    return default;
-                }
-
-                convertedValue = (T)Convert.ChangeType(value, typeof(T));
-            } catch (Exception) {
-                Console.WriteLine($"Expected a variable of type {typeof(T).Name} after argument {argName}. Ignoring.");
-                return default;
-            }
-
-            try {
-                if (onFound!=null) convertedValue = onFound(convertedValue);
-                if (!string.IsNullOrWhiteSpace(message)) Console.WriteLine(string.Format(message, convertedValue));
-                return convertedValue;
-            } catch (Exception e) {
-                Console.WriteLine($"Unhandled exception encountered when attempting to parse argument {argName}.");
-                Console.WriteLine(e);
-                return default;
-            }
+            ShowName = Argument.Show.ParsePath();
+            CWD = Argument.Dir.ParsePath() ?? Directory.GetCurrentDirectory();
+            FirstEpisodeNo = Argument.FirstEpisode.ParseVariable<uint>();
         }
 
         private static void PrintHelp() {
-            new List<string>() {
-                "Converts files outputted by MakeMKV and makes them digestible by Plex media server.",
+            ProgramAttributes att = Assembly.GetAssembly(typeof(Program))?.GetCustomAttribute<ProgramAttributes>() ?? throw new NullReferenceException();
+
+            List<string> lines = new() {
+                $"--- {att.FriendlyName} v{att.Version} ---",
+                att.Description,
+                $"Created by {att.Author} ({att.Company})",
+                att.Site,
                 "Arguments:",
-                "--help - Show this text!",
-                "--show <ShowName> - Manually specify show name, otherwise will just assume the the current folder is the show.",
-                "--dir <Directory> - Manually specify working directory (should be the main show directory). Otherwise will just use the current directory.",
-                "--firstep <Number> - Manually set the first episode number for a folder that contains episodes that don't start at 1.",
-                "--noseasons - This show does not have seasons. All episodes are assumed to be directly in the main show folder. Otherwise, will attempt to find season folders in the format \"Season <number>\"",
-                "--printonly - Doesn't execute any filesystem actions and just prints runtime data instead.",
-                "--ignorebadread - Will ignore instances where the program can't access an episode file and skip to the next (not recommended while MakeMKV is running a rip).",
-                "--force - Skips preformatted check and renames all episodes in order. Make sure your episodes are in the order you want them!",
-            }.ForEach(x => Console.WriteLine(x));
+            };
+            lines.AddRange(Argument.Arguments.Select(x => x.ToString()));
+            lines.ForEach(x => Console.WriteLine(x));
         }
 
         private static void ConvertEpisode(string path, int? season = null) {

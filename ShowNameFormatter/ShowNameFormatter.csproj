@@ -9,31 +9,38 @@
     <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
     <NeutralLanguage>en</NeutralLanguage>
     <Version>1.1.0</Version>
-    <Authors>Baphomet Media</Authors>
+    <Authors>Sarah Hawthorne</Authors>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/baph-omet/ShowNameFormatter</RepositoryUrl>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <Title>Show Name Formatter</Title>
+    <Company>Baphomet Media</Company>
+    <Description>Command-line tool that converts ouputted TV Show video files from MakeMKV into file names usable by Plex and other media servers. </Description>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>full</DebugType>
+    <FileVersion>$(Version)-snapshot</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release win-x64'">
-    <FileVersion>$(Version)-snapshot</FileVersion>
     <DebugType>none</DebugType>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
-    <PublishReadyToRun>true</PublishReadyToRun>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DebugType>none</DebugType>
     <FileVersion>$(Version)</FileVersion>
+    <SelfContained>true</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="ProgramAttributes">
+      <_Parameter1>$(Title)</_Parameter1>
+      <_Parameter2>$(Authors)</_Parameter2>
+      <_Parameter3>$(Company)</_Parameter3>
+      <_Parameter4>$(FileVersion)</_Parameter4>
+      <_Parameter5>$(Description)</_Parameter5>
+      <_Parameter6>$(RepositoryUrl)</_Parameter6>
+    </AssemblyAttribute>
     <None Include="..\README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
