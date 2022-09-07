@@ -11,6 +11,10 @@
                 Show,
                 Dir,
                 FirstEpisode,
+                SeasonFilter,
+                EpisodeFilter,
+                NoBackup,
+                Undo,
             };
         internal static Argument Help => new("help", "Show this text!");
         internal static Argument NoSeasons => new("noseasons",
@@ -37,6 +41,21 @@
             "Manually set the first episode number for a folder that contains episodes that don't start at 1.",
             "Beginning with episode {0}",
             "Number");
+        internal static Argument SeasonFilter => new(
+            "A regex pattern to filter season folders. Does nothing if 'noseasons' is enabled.",
+            "Only processing seasons that match {0}.",
+            "Pattern");
+        internal static Argument EpisodeFilter => new(
+            "A regex pattern to filter episode files.",
+            "Only processing episodes that match {0}",
+            "Pattern");
+        internal static Argument NoBackup => new(
+            "Skip the creation of a backup file. This means you cannot perform an undo!",
+            "No backup file will be created.");
+        internal static Argument Undo => new(
+            "Perform an undo on a prior conversion.",
+            "Starting undo function.");
+
 
         internal string Name { get; private set; }
         internal string HelpDescription { get; private set; }
