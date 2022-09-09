@@ -13,6 +13,7 @@ namespace ShowNameFormatter {
             NewPath = newpath;
         }
     }
+
     public static class Program {
         private static bool NoSeasons;
         private static bool PrintOnly;
@@ -27,7 +28,7 @@ namespace ShowNameFormatter {
         private static Regex? EpisodeFilter;
 
         private static uint FirstEpisodeNo = 1;
-        private static uint EpisodeNo = 0;
+        private static uint EpisodeNo;
 
         private static readonly List<ConversionMapping> ConversionPairs = new();
 
@@ -54,6 +55,7 @@ namespace ShowNameFormatter {
             }
 
             if (NoSeasons) {
+                EpisodeNo = GetFirstEpisodeNumber();
                 Directory.GetFiles(CWD, "*.mkv")
                     .Where(x => !IsPreformatted(x))
                     .Where(x => EpisodeFilter == null || EpisodeFilter.IsMatch(x))
@@ -292,7 +294,7 @@ namespace ShowNameFormatter {
             return false;
         }
 
-        private static uint GetFirstEpisodeNumber(int? season) {
+        private static uint GetFirstEpisodeNumber(int? season = null) {
             string dir = CWD;
             if (season != null) dir = Path.Combine(dir, $"Season {season}");
 
